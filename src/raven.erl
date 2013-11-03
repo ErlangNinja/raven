@@ -1,5 +1,7 @@
 -module(raven).
 
+-include("raven.hrl").
+
 -export([parse/1, parse/2]).
 -on_load(load_nif/0).
 

@@ -13,8 +13,7 @@ scan(Format, Dir) ->
     filelib:fold_files(Dir, ".*[.]md", true, fun(File, Files) -> [{Format, File} | Files] end, []).
 
 setup() ->
-    file:set_cwd(".."),
-    scan(json, "deps/api-blueprint/examples") ++ scan(yaml, "deps/api-blueprint/examples").
+    scan(blueprint, "../deps/api-blueprint/examples").
 
 teardown(_Files) ->
     ok.
@@ -24,6 +23,6 @@ blueprints(Files) ->
 
 blueprint({Format, File}) ->
     {ok, Data} = file:read_file(File),
-    {ok, Blueprint} = raven:parse(Format, Data),
-    ?debugFmt("~s", [Blueprint]),
+    {ok, Result, Blueprint} = raven:parse(Format, Data),
+    ?debugFmt("~p : ~p ~p", [File, Result, Blueprint]),
     ok.
