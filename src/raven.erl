@@ -1,27 +1,26 @@
 -module(raven).
 
--export([parse/1]).
--on_load(init/0).
+-export([parse/1, parse/2]).
+-on_load(load_nif/0).
 
--define(APPNAME, ?MODULE).
--define(LIBNAME, ?MODULE).
+-define(nif_stub, nif_stub_error(?LINE)).
+nif_stub_error(Line) ->
+    erlang:nif_error({nif_not_loaded, module, ?MODULE, line, Line}).
 
-parse(_) ->
-    not_loaded(?LINE).
+load_nif() ->
+    PrivDir = case code:priv_dir(?MODULE) of
+                  {error, bad_name} ->
+                      EbinDir = filename:dirname(code:which(?MODULE)),
+                      AppPath = filename:dirname(EbinDir),
+                      filename:join(AppPath, "priv");
+                  Path ->
+                      Path
+              end,
+    SoName = filename:join(PrivDir, ?MODULE),
+    erlang:load_nif(SoName, {1, 0, 0}).
 
-init() ->
-    SoName = case code:priv_dir(?APPNAME) of
-                 {error, bad_name} ->
-                     case filelib:is_dir(filename:join(["..", priv])) of
-                         true ->
-                             filename:join(["..", priv, ?LIBNAME]);
-                         _ ->
-                             filename:join([priv, ?LIBNAME])
-                     end;
-                 Dir ->
-                     filename:join(Dir, ?LIBNAME)
-             end,
-    erlang:load_nif(SoName, {1,0,0}).
+parse(Data) ->
+    parse(blueprint, Data).
 
-not_loaded(Line) ->
-    erlang:nif_error({not_loaded, [{module, ?MODULE}, {line, Line}]}).
+parse(_, _) ->
+    ?nif_stub.

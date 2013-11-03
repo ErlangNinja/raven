@@ -3,90 +3,65 @@
 #include <fstream>
 #include "erl_nif.h"
 #include "snowcrash.h"
+#include "SerializeJSON.h"
+#include "SerializeYAML.h"
 
 using snowcrash::SourceAnnotation;
 using snowcrash::Error;
 
-extern int parse(int i);
+// static variables
+static ERL_NIF_TERM a_json;
+static ERL_NIF_TERM a_yaml;
+static ERL_NIF_TERM a_ok;
+static ERL_NIF_TERM a_error;
 
-/// \brief Print Markdown source annotation.
-/// \param prefix A string prefix for the annotation
-/// \param annotation An annotation to print
-void PrintAnnotation(const std::string& prefix, const snowcrash::SourceAnnotation& annotation)
-{
-    std::cerr << prefix;
-    
-    if (annotation.code != SourceAnnotation::OK) {
-        std::cerr << " (" << annotation.code << ") ";
-    }
-    
-    if (!annotation.message.empty()) {
-        std::cerr << " " << annotation.message;
-    }
-    
-    if (!annotation.location.empty()) {
-        for (snowcrash::SourceCharactersBlock::const_iterator it = annotation.location.begin();
-             it != annotation.location.end();
-             ++it) {
-            std::cerr << ((it == annotation.location.begin()) ? " :" : ";");
-            std::cerr << it->location << ":" << it->length;
+static void init_atoms(ErlNifEnv* env) {
+
+    a_json = enif_make_atom(env, "json");
+    a_yaml = enif_make_atom(env, "yaml");
+
+    a_ok = enif_make_atom(env, "ok");
+    a_error = enif_make_atom(env, "error");
+
+}
+
+static int on_load(ErlNifEnv* env, void**, ERL_NIF_TERM) {
+    init_atoms(env);
+    return 0;
+}
+
+static ERL_NIF_TERM parse_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+    ErlNifBinary bin;
+    if (enif_inspect_iolist_as_binary(env, argv[1], &bin)) {
+        std::string str ((const char*) bin.data, bin.size);
+        snowcrash::BlueprintParserOptions options = 0;
+        snowcrash::Result result;
+        snowcrash::Blueprint blueprint;
+        snowcrash::parse(str, options, result, blueprint);
+        if (result.error.code == Error::OK) {
+            ERL_NIF_TERM res;
+            if (enif_compare(a_json,argv[0]) == 0) {
+                std::stringstream ss;
+                SerializeJSON(blueprint, ss);
+                res = enif_make_string(env,ss.str().c_str(),ERL_NIF_LATIN1);
+            } else if (enif_compare(a_yaml,argv[0]) == 0) {
+                std::stringstream ss;
+                SerializeYAML(blueprint, ss);
+                res = enif_make_string(env,ss.str().c_str(),ERL_NIF_LATIN1);
+            } else {
+                res = enif_make_string(env,str.c_str(),ERL_NIF_LATIN1);
+            }
+            return enif_make_tuple2(env,a_ok,res);
+        } else {
+            return enif_make_tuple2(env,a_error,enif_make_atom(env, "b"));
         }
-    }
-    
-    std::cerr << std::endl;
-}
-
-/// \brief Print parser result to stderr.
-/// \param result A parser result to print
-void PrintResult(const snowcrash::Result& result)
-{
-    std::cerr << std::endl;
-    
-    if (result.error.code == Error::OK) {
-        std::cerr << "OK.\n";
-    }
-    else {
-        PrintAnnotation("error:", result.error);
-    }
-    
-    for (snowcrash::Warnings::const_iterator it = result.warnings.begin(); it != result.warnings.end(); ++it) {
-        PrintAnnotation("warning:", *it);
-    }
-}
-
-static ERL_NIF_TERM parse_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
-{
-    unsigned int length;
-    char* buffer = NULL;
-
-    if (!enif_get_list_length(env, argv[0], &length)) {
+    } else {
         return enif_make_badarg(env);
     }
-    
-    length++;
-
-    buffer = (char*) malloc(length * sizeof(char));
-    if (enif_get_string(env, argv[0], buffer, length+1, ERL_NIF_LATIN1) < 1) {
-        free(buffer);
-        return enif_make_badarg(env);
-    }
-
-    // Parse
-    snowcrash::BlueprintParserOptions options = 0;
-    snowcrash::Result result;
-    snowcrash::Blueprint blueprint;
-    snowcrash::parse(buffer, options, result, blueprint);
-
-    PrintResult(result);
-
-    free(buffer);
-
-    return enif_make_int(env, 0);
 }
 
-static ErlNifFunc nif_funcs[] =
-{
-    {"parse", 1, parse_nif}
+static ErlNifFunc nif_funcs[] = {
+    {"parse", 2, parse_nif}
 };
 
-ERL_NIF_INIT(snowcrash,nif_funcs,NULL,NULL,NULL,NULL)
+ERL_NIF_INIT(raven,nif_funcs,&on_load,NULL,NULL,NULL)
