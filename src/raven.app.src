@@ -1,0 +1,12 @@
+{application, raven,
+ [
+  {description, "Erlang NIF bindings for the Snowcrash reference API Blueprint parser from Apiary"},
+  {vsn, "1.0.0"},
+  {modules, []},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.
