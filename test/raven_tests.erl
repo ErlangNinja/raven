@@ -25,7 +25,7 @@ blueprints(Files) ->
 blueprint({Format, File}) ->
     {ok, Data} = file:read_file(File),
     {ok, Result, Blueprint} = raven:parse(Format, Data),
-    ?assertMatch([],Result#result.warnings),
-    ?assertEqual(ok,Result#result.error#source_annotation.type),
-    ?debugFmt("~p : ~p", [File, Result#result.error#source_annotation.type]),
+    ?assertMatch([], Result#result.warnings),
+    ?assertEqual(ok, Result#result.error#source_annotation.type),
+    ?debugFmt("~s : ~p", [File, Result#result.error#source_annotation.type]),
     ok.
