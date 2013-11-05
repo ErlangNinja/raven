@@ -28,11 +28,18 @@ const char *warning_str[] = {
     "deprecated"
 };
 
+const char *use_str[] = {
+    "undefined",
+    "optional",
+    "required"
+};
+
 // static variables
 static ERL_NIF_TERM a_json;
 static ERL_NIF_TERM a_yaml;
 static ERL_NIF_TERM a_ok;
 static ERL_NIF_TERM a_error;
+static ERL_NIF_TERM a_undefined;
 static ERL_NIF_TERM a_not_implemented;
 
 static ERL_NIF_TERM a_result;
@@ -41,6 +48,9 @@ static ERL_NIF_TERM a_source_annotation;
 static ERL_NIF_TERM a_resource_group;
 static ERL_NIF_TERM a_resource;
 static ERL_NIF_TERM a_payload;
+static ERL_NIF_TERM a_parameter;
+static ERL_NIF_TERM a_action;
+static ERL_NIF_TERM a_transaction_example;
 
 static ERL_NIF_TERM l_empty;
 
@@ -51,6 +61,7 @@ static void init_terms(ErlNifEnv* env) {
 
     a_ok = enif_make_atom(env, "ok");
     a_error = enif_make_atom(env, "error");
+    a_undefined = enif_make_atom(env, "undefined");
     a_not_implemented = enif_make_atom(env, "not_implemented");
 
     a_result = enif_make_atom(env, "result");
@@ -59,6 +70,9 @@ static void init_terms(ErlNifEnv* env) {
     a_resource_group = enif_make_atom(env, "resource_group");
     a_resource = enif_make_atom(env, "resource");
     a_payload = enif_make_atom(env, "payload");
+    a_parameter = enif_make_atom(env, "parameter");
+    a_action = enif_make_atom(env, "action");
+    a_transaction_example = enif_make_atom(env, "transaction_example");
 
     l_empty = enif_make_list(env, 0);
 
@@ -71,7 +85,7 @@ static int on_load(ErlNifEnv* env, void**, ERL_NIF_TERM) {
 
 static ERL_NIF_TERM wrap_string(ErlNifEnv* env, const std::string str) {
     if (str.empty()) {
-        return l_empty;
+        return a_undefined;
     } else {
         return enif_make_string(env, str.c_str(), ERL_NIF_LATIN1);
     }
@@ -115,26 +129,29 @@ static ERL_NIF_TERM wrap_kvpairs(ErlNifEnv* env, const Collection<KeyValuePair>:
     return list;
 }
 
+static ERL_NIF_TERM wrap_values(ErlNifEnv* env, const Collection<Value>::type values) {
+    ERL_NIF_TERM list = enif_make_list(env, 0);
+    for (Collection<Value>::const_iterator it = values.begin(); it != values.end(); ++it) {
+        list = enif_make_list_cell(env,wrap_string(env,*it),list);
+    }
+    return list;
+}
+
 static ERL_NIF_TERM wrap_parameter(ErlNifEnv* env, const Parameter parameter) {
-    return a_not_implemented;
+    ERL_NIF_TERM name = wrap_string(env, parameter.name);
+    ERL_NIF_TERM description = wrap_string(env, parameter.description);
+    ERL_NIF_TERM type = wrap_string(env, parameter.type);
+    ERL_NIF_TERM use = enif_make_atom(env, use_str[parameter.use]);
+    ERL_NIF_TERM default_value = wrap_string(env, parameter.defaultValue);
+    ERL_NIF_TERM example_value = wrap_string(env, parameter.exampleValue);
+    ERL_NIF_TERM values = wrap_values(env, parameter.values);
+    return enif_make_tuple8(env, a_parameter, name, description, type, use, default_value, example_value, values);
 }
 
 static ERL_NIF_TERM wrap_parameters(ErlNifEnv* env, const Collection<Parameter>::type parameters) {
     ERL_NIF_TERM list = enif_make_list(env, 0);
     for (Collection<Parameter>::const_iterator it = parameters.begin(); it != parameters.end(); ++it) {
         list = enif_make_list_cell(env,wrap_parameter(env,*it),list);
-    }
-    return list;
-}
-
-static ERL_NIF_TERM wrap_action(ErlNifEnv* env, const Action action) {
-    return a_not_implemented;
-}
-
-static ERL_NIF_TERM wrap_actions(ErlNifEnv* env, const Collection<Action>::type actions) {
-    ERL_NIF_TERM list = enif_make_list(env, 0);
-    for (Collection<Action>::const_iterator it = actions.begin(); it != actions.end(); ++it) {
-        list = enif_make_list_cell(env,wrap_action(env,*it),list);
     }
     return list;
 }
@@ -147,6 +164,48 @@ static ERL_NIF_TERM wrap_payload(ErlNifEnv* env, const Payload payload) {
     ERL_NIF_TERM body = wrap_string(env, payload.name);
     ERL_NIF_TERM schema = wrap_string(env, payload.name);
     return enif_make_tuple7(env, a_payload, name, description, parameters, headers, body, schema);
+}
+
+static ERL_NIF_TERM wrap_payloads(ErlNifEnv* env, const Collection<Payload>::type payloads) {
+    ERL_NIF_TERM list = enif_make_list(env, 0);
+    for (Collection<Payload>::const_iterator it = payloads.begin(); it != payloads.end(); ++it) {
+        list = enif_make_list_cell(env,wrap_payload(env,*it),list);
+    }
+    return list;
+}
+
+static ERL_NIF_TERM wrap_example(ErlNifEnv* env, const TransactionExample example) {
+    ERL_NIF_TERM name = wrap_string(env, example.name);
+    ERL_NIF_TERM description = wrap_string(env, example.description);
+    ERL_NIF_TERM requests = wrap_payloads(env, example.requests);
+    ERL_NIF_TERM responses = wrap_payloads(env, example.responses);
+    return enif_make_tuple5(env, a_transaction_example, name, description, requests, responses);
+}
+
+static ERL_NIF_TERM wrap_examples(ErlNifEnv* env, const Collection<TransactionExample>::type examples) {
+    ERL_NIF_TERM list = enif_make_list(env, 0);
+    for (Collection<TransactionExample>::const_iterator it = examples.begin(); it != examples.end(); ++it) {
+        list = enif_make_list_cell(env,wrap_example(env,*it),list);
+    }
+    return list;
+}
+
+static ERL_NIF_TERM wrap_action(ErlNifEnv* env, const Action action) {
+    ERL_NIF_TERM method = wrap_string(env, action.method);
+    ERL_NIF_TERM name = wrap_string(env, action.name);
+    ERL_NIF_TERM description = wrap_string(env, action.description);
+    ERL_NIF_TERM parameters = wrap_parameters(env, action.parameters);
+    ERL_NIF_TERM headers = wrap_kvpairs(env, action.headers);
+    ERL_NIF_TERM examples = wrap_examples(env, action.examples);
+    return enif_make_tuple7(env, a_action, method, name, description, parameters, headers, examples);
+}
+
+static ERL_NIF_TERM wrap_actions(ErlNifEnv* env, const Collection<Action>::type actions) {
+    ERL_NIF_TERM list = enif_make_list(env, 0);
+    for (Collection<Action>::const_iterator it = actions.begin(); it != actions.end(); ++it) {
+        list = enif_make_list_cell(env,wrap_action(env,*it),list);
+    }
+    return list;
 }
 
 static ERL_NIF_TERM wrap_resource(ErlNifEnv* env, const Resource resource) {

@@ -10,6 +10,32 @@
     warnings
 }).
 
+-record(parameter, {
+    name,
+    description,
+    type,
+    use,
+    default_value,
+    example_value,
+    values
+}).
+
+-record(transaction_example, {
+    name,
+    description,
+    requests,
+    responses
+}).
+
+-record(action, {
+    method,
+    name,
+    description,
+    parameters,
+    headers,
+    examples
+}).
+
 -record(payload, {
     name,
     description,
