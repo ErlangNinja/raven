@@ -14,7 +14,7 @@ scan(Format, Dir) ->
     lists:reverse(filelib:fold_files(Dir, ".*[.]md", true, fun(File, Files) -> [{Format, File} | Files] end, [])).
 
 setup() ->
-    scan(blueprint, "../deps/api-blueprint/examples").
+    scan(blueprint, "../blueprints").
 
 teardown(_Files) ->
     ok.
@@ -24,7 +24,7 @@ blueprints(Files) ->
 
 blueprint({Format, File}) ->
     {ok, Data} = file:read_file(File),
-    {ok, Result, Blueprint} = raven:parse(Format, Data),
+    {ok, Result, _Blueprint} = raven:parse(Format, Data),
     ?assertMatch([], Result#result.warnings),
     ?assertEqual(ok, Result#result.error#source_annotation.type),
     ?debugFmt("~s : ~p", [File, Result#result.error#source_annotation.type]),
