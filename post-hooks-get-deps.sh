@@ -9,3 +9,9 @@ then
 fi
 
 git submodule update --init --recursive
+
+if [ -f c_deps/snowcrash/Makefile ]; then
+    cd c_deps/snowcrash
+    ./configure
+    cd $START_DIR
+fi

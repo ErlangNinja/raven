@@ -10,9 +10,8 @@ fi
 
 START_DIR=`pwd`
 
-if [ -d c_deps/snowcrash ]; then
+if [ -f c_deps/snowcrash/Makefile ]; then
     cd c_deps/snowcrash
-    ./configure
     make snowcrash
     cd $START_DIR
 fi
