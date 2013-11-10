@@ -20,7 +20,7 @@ teardown(_Files) ->
     ok.
 
 blueprints(Files) ->
-    {inorder, [{timeout, 60, ?_test(blueprint(File))} || File <- Files]}.
+    {"Blueprints", {inorder, {timeout, 60, [{File, ?_test(blueprint({Format, File}))} || {Format, File} <- Files]}}}.
 
 blueprint({Format, File}) ->
     {ok, Data} = file:read_file(File),
