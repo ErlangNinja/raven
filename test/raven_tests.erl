@@ -20,7 +20,11 @@ teardown(_Files) ->
     ok.
 
 blueprints(Files) ->
-    {"Blueprints", {inorder, {timeout, 60, [{File, ?_test(blueprint({Format, File}))} || {Format, File} <- Files]}}}.
+    {Blueprints, _} = lists:foldl(fun({Format, File}, {Tests, Count}) ->
+        Test = {File, Count, fun() -> blueprint({Format, File}) end},
+        {[Test | Tests], Count + 1}
+    end, {[], 1}, Files),
+    {"Blueprints", inorder, {timeout, 60, lists:reverse(Blueprints)}}.
 
 blueprint({Format, File}) ->
     {ok, Data} = file:read_file(File),
